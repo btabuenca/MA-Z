@@ -1,0 +1,127 @@
+### Documento de registro de trabajo.
+
+#### *Getting Started*
+
+Como información previa cabe destacar que este informe se esta haciendo sobre una maquina Linux Versión 5.3.0-26-generic y que por tanto las instrucciones dadas a continuación se hacen en base a estas consideraciones.
+
+Se instala [Arduino IDE](https://www.arduino.cc/en/main/software) en el equipo. Versión 1.8.10
+
+Se conecta la placa al equipo mediante un cable USB y se comprueba que el led de alimentación se enciende, siendo el resultado de la prueba satisfactorio.
+
+Se realiza un prueba con multímetro para comprobar que la placa
+suministra corriente, siendo el resultado satisfactorio.
+
+Se abre Arduino IDE y se intenta subir a la placa un programa de prueba que mande una señal intermitente por unos de los pines digitales. Este programa se puede encontrar en el apartado de ejemplos en la pestaña de archivo **No se consigue subir el archivo.**
+
+El problema que se presenta es referente a los permisos del programa y a la incapacidad de este de enviar el archivo por el puerto USB al que se
+ha conectado la placa. Para subsanar este problema añadimos al usuario actual al grupo dialout.
+
+```bash
+sudo usermod -a -G dialout $USER
+```
+
+De esta manera damos permiso a los programas que el usuario actual ejecuta para poder acceder a los puertos USB. Para que los cambios se hagan efectivos hay que hacer un re-login del usuario.
+
+Tras volver a intentar subir el archivo a la placa surge otro problema.
+**No se consigue subir el archivo.**
+
+En este caso el problema es referente a la ausencia de la librería de Python, "pyserial". En este caso basta con descargar python3 y después, mediante su gestor de librerías PIP debemos instalar la librería.
+
+```bash
+sudo apt-get update
+sudo apt-get install python3.6
+sudo apt-get install python3-pip
+sudo -H pip3 install pyserial
+```
+De esta manera conseguimos descargar todo lo necesario para que funcione la librería pyserial.
+
+Volvemos a intentar subir el archivo, siendo el resultado de la prueba satisfactoria.
+
+Ahora se comprueba que efectivamente el pin digital esta generando una señal intermitente. Para hacer esta comprobación basta medir el voltaje que sale por el pin mediante un multímetro o si se carece de este, se puede emplear un LED y observar si este parpadea al conectarlo entre el pin y GND.
+
+#### The Real Code
+
+El código que se ha desarrollado para el tratamiento de la señal de los sensores es sencillo.
+Primero se definen los pines en los que se conectarán lo sensores.
+
+```C
+#define VALVULA 2
+#define FUGAS 35
+#define PESO 36
+#define HUMEDADSUELO 37
+```
+
+Después se inicializan las variables que contendrán los valores que se leen de los sensores
+
+```C
+int valuePeso = 0;
+int valueFugas = 0;
+int valueHumedad = 0;
+```
+
+La función setup solo se ejecuta una vez y sirve para definir que el pin digital que gobierna el relé será de salida.
+Ademas, de momento también sirve para abrir la salida serie por pantalla a 9600 baudios.
+
+```C
+void setup() {
+  pinMode(VALVULA,OUTPUT);
+  Serial.begin(9600);
+  delay(1000);
+}
+```
+
+Finalmente esta la función loop que se ejecutara de forma secuencia e indefinida hasta que se apague el sistema.
+
+```C
+void loop() {
+  valuePeso = analogRead(PESO);
+  valueFugas = analogRead(FUGAS);
+  valueHumedad = analogRead(HUMEDADSUELO);
+  valueHumedad = map(valueHumedad,4095,0,0,100);
+  valuePeso = map(valuePeso,256.00,4095.00,0.00,23.63);
+  valuePeso = valuePeso / 2.205;
+  Serial.print("Moisture : ");
+  Serial.print(valueHumedad);
+  Serial.print("%");
+  Serial.print(" Peso : ");
+  Serial.print(valuePeso);
+  Serial.print("Kg");
+  Serial.print(" Fugas : ");
+  Serial.println(valueFugas);
+
+  delay(1000);
+}
+```
+
+A continuación analizaremos la función por partes para hacer mas sencillo su entendimiento.
+
+```C
+valuePeso = analogRead(PESO);
+valueFugas = analogRead(FUGAS);
+valueHumedad = analogRead(HUMEDADSUELO);
+```
+
+En este trozo de código, se leen los valores de los pines a los que se han conectado los sensores
+y se asignan a las variables anteriormente definidas.
+
+```C
+valuePeso = map(valuePeso,256.00,4095.00,0.00,23.63);
+valuePeso = valuePeso / 2.205;
+```
+
+En las anteriores lineas se acondiciona la señal de sensor de presión. Primero
+se hace un mapeo de los valores devueltos y posteriormente se transforma de libras
+Kilogramos.
+
+```C
+Serial.print("Moisture : ");
+Serial.print(valueHumedad);
+Serial.print("%");
+Serial.print(" Peso : ");
+Serial.print(valuePeso);
+Serial.print("Kg");
+Serial.print(" Fugas : ");
+Serial.println(valueFugas);
+```
+
+Se muestran los datos por pantalla. Cuando mis compañeros implementen el ThingsBoard estas lineas no tendrán sentido.
